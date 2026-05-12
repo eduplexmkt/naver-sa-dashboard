@@ -85,6 +85,9 @@ DEFAULT_SETTINGS = {
     "ctrCheckCost": 50000,
 }
 
+# GitHub raw CSV URL (매일 자동 갱신되는 데이터 소스)
+DEFAULT_CSV_URL = "https://raw.githubusercontent.com/eduplexmkt/naver-sa-dashboard/main/naver_sa_merged.csv"
+
 
 # ============================================
 # 데이터 로드
@@ -356,8 +359,8 @@ with st.sidebar:
 
     df_raw = None
     if data_source == "GitHub URL에서 자동 로드":
-        # st.secrets 또는 기본값
-        default_url = ""
+        # 기본 URL은 코드에 박혀있고, secrets로 override 가능
+        default_url = DEFAULT_CSV_URL
         if "CSV_URL" in st.secrets:
             default_url = st.secrets["CSV_URL"]
         csv_url = st.text_input(
@@ -683,4 +686,4 @@ st.caption("""
 """)
 
 st.divider()
-st.caption(f"마지막 갱신: {datetime.now().strftime('%Y-%m-%d %H:%M')} · 캐시 TTL 10분")
+st.caption(f"페이지 마지막 로드: {datetime.now().strftime('%Y-%m-%d %H:%M')} · 데이터는 10분 캐시 후 자동 갱신")
