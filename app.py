@@ -592,19 +592,33 @@ if not date_agg.empty:
 st.subheader("🎯 캠페인별 현황")
 camp_df = by_camp.copy()
 camp_df["진단"] = [diagnose(r.to_dict(), st.session_state.settings)["label"] for _, r in camp_df.iterrows()]
-# 포맷팅된 표시용 컬럼
+
+# 표시용 DataFrame (숫자 값 그대로 유지 → 헤더 클릭 정렬 시 숫자 기준)
 display_camp = pd.DataFrame({
     "캠페인": camp_df["campaign"],
-    "광고비": camp_df["cost"].apply(fmt_won),
-    "DB수": camp_df["db"].apply(fmt_db),
-    "DB단가": camp_df["cpa"].apply(fmt_won),
-    "노출수": camp_df["impressions"].apply(fmt_int),
-    "클릭수": camp_df["clicks"].apply(fmt_int),
-    "CTR": camp_df["ctr"].apply(fmt_pct),
-    "CVR": camp_df["cvr"].apply(fmt_pct),
+    "광고비": camp_df["cost"],
+    "DB수": camp_df["db"],
+    "DB단가": camp_df["cpa"],
+    "노출수": camp_df["impressions"],
+    "클릭수": camp_df["clicks"],
+    "CTR": camp_df["ctr"],
+    "CVR": camp_df["cvr"],
     "진단": camp_df["진단"],
 })
-st.dataframe(display_camp, use_container_width=True, hide_index=True)
+st.dataframe(
+    display_camp,
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+        "광고비": st.column_config.NumberColumn(format="₩%d"),
+        "DB수":  st.column_config.NumberColumn(format="%.1f"),
+        "DB단가": st.column_config.NumberColumn(format="₩%d"),
+        "노출수": st.column_config.NumberColumn(format="%d"),
+        "클릭수": st.column_config.NumberColumn(format="%d"),
+        "CTR":   st.column_config.NumberColumn(format="%.2f%%"),
+        "CVR":   st.column_config.NumberColumn(format="%.2f%%"),
+    },
+)
 
 
 # ----- AI 프롬프트 복사 영역 -----
@@ -641,17 +655,30 @@ ag_df["진단"] = [diagnose(r.to_dict(), st.session_state.settings)["label"] for
 display_ag = pd.DataFrame({
     "캠페인": ag_df["campaign"],
     "광고그룹": ag_df["adgroup"],
-    "광고비": ag_df["cost"].apply(fmt_won),
-    "DB수(추정)": ag_df["db"].apply(fmt_db),
-    "DB단가": ag_df["cpa"].apply(fmt_won),
-    "노출수": ag_df["impressions"].apply(fmt_int),
-    "클릭수": ag_df["clicks"].apply(fmt_int),
-    "CTR": ag_df["ctr"].apply(fmt_pct),
-    "CVR": ag_df["cvr"].apply(fmt_pct),
+    "광고비": ag_df["cost"],
+    "DB수(추정)": ag_df["db"],
+    "DB단가": ag_df["cpa"],
+    "노출수": ag_df["impressions"],
+    "클릭수": ag_df["clicks"],
+    "CTR": ag_df["ctr"],
+    "CVR": ag_df["cvr"],
     "진단": ag_df["진단"],
 })
 st.caption(f"{len(ag_df):,}개 광고그룹")
-st.dataframe(display_ag, use_container_width=True, hide_index=True)
+st.dataframe(
+    display_ag,
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+        "광고비": st.column_config.NumberColumn(format="₩%d"),
+        "DB수(추정)": st.column_config.NumberColumn(format="%.1f"),
+        "DB단가": st.column_config.NumberColumn(format="₩%d"),
+        "노출수": st.column_config.NumberColumn(format="%d"),
+        "클릭수": st.column_config.NumberColumn(format="%d"),
+        "CTR":   st.column_config.NumberColumn(format="%.2f%%"),
+        "CVR":   st.column_config.NumberColumn(format="%.2f%%"),
+    },
+)
 
 
 # ----- 키워드별 표 -----
@@ -668,17 +695,27 @@ display_kw = pd.DataFrame({
     "캠페인": kw_df["campaign"],
     "광고그룹": kw_df["adgroup"],
     "키워드": kw_df["keyword"],
-    "광고비": kw_df["cost"].apply(fmt_won),
-    "노출수": kw_df["impressions"].apply(fmt_int),
-    "클릭수": kw_df["clicks"].apply(fmt_int),
-    "CTR": kw_df["ctr"].apply(fmt_pct),
+    "광고비": kw_df["cost"],
+    "노출수": kw_df["impressions"],
+    "클릭수": kw_df["clicks"],
+    "CTR": kw_df["ctr"],
     "DB수": "—",
     "DB단가": "—",
     "CVR": "—",
     "진단": kw_df["진단"],
 })
 st.caption(f"{len(kw_df):,}개 키워드")
-st.dataframe(display_kw, use_container_width=True, hide_index=True)
+st.dataframe(
+    display_kw,
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+        "광고비": st.column_config.NumberColumn(format="₩%d"),
+        "노출수": st.column_config.NumberColumn(format="%d"),
+        "클릭수": st.column_config.NumberColumn(format="%d"),
+        "CTR":   st.column_config.NumberColumn(format="%.2f%%"),
+    },
+)
 
 st.caption("""
 ※ DB수·DB단가·CVR은 키워드 단위로 집계되지 않습니다. 네이버 파워링크 검색어별 보고서는
