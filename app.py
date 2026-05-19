@@ -397,6 +397,152 @@ def aggregate_by_date(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ============================================
+# AG Grid 헬퍼 (모든 표 공통 디자인)
+# ============================================
+# 매체별 성과 디자인 토큰
+AGG_HEADER_BG     = "#1e3a8a"     # 진한 네이비
+AGG_HEADER_TEXT   = "#ffffff"
+AGG_ROW_BG        = "#eef2ff"     # 옅은 라벤더 (단색, 줄무늬 X)
+AGG_ROW_HOVER     = "#c7d2fe"     # 호버 시 진한 라벤더
+AGG_TEXT_PRIMARY  = "#1e293b"     # 진한 슬레이트 (숫자)
+AGG_TEXT_LINK     = "#4f46e5"     # 인디고 (첫 컬럼)
+AGG_FONT          = "'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, sans-serif"
+
+
+def aggrid_custom_css() -> dict:
+    """AG Grid 커스텀 CSS - 매체별 성과 디자인과 일치"""
+    return {
+        # 전체 폰트
+        ".ag-theme-streamlit, .ag-theme-streamlit .ag-cell, .ag-theme-streamlit .ag-header-cell": {
+            "font-family": f"{AGG_FONT} !important",
+        },
+        # 헤더
+        ".ag-header": {
+            "background-color": f"{AGG_HEADER_BG} !important",
+            "color": f"{AGG_HEADER_TEXT} !important",
+            "border-bottom": "none !important",
+        },
+        ".ag-header-cell": {
+            "background-color": f"{AGG_HEADER_BG} !important",
+            "color": f"{AGG_HEADER_TEXT} !important",
+            "font-weight": "600 !important",
+            "font-size": "13px !important",
+            "border-right": "1px solid rgba(255,255,255,0.1) !important",
+        },
+        ".ag-header-cell-text": {"color": f"{AGG_HEADER_TEXT} !important"},
+        ".ag-header-icon, .ag-icon": {
+            "color": "rgba(255,255,255,0.8) !important",
+            "fill": "rgba(255,255,255,0.8) !important",
+        },
+        # 데이터 행 (단색 라벤더, 줄무늬 없음)
+        ".ag-row": {
+            "background-color": f"{AGG_ROW_BG} !important",
+            "border-bottom": "1px solid #ffffff !important",
+        },
+        ".ag-row-odd, .ag-row-even": {
+            "background-color": f"{AGG_ROW_BG} !important",
+        },
+        ".ag-row-hover": {
+            "background-color": f"{AGG_ROW_HOVER} !important",
+        },
+        # 셀
+        ".ag-cell": {
+            "border-right": "none !important",
+            "color": f"{AGG_TEXT_PRIMARY} !important",
+            "font-size": "13px !important",
+            "display": "flex !important",
+            "align-items": "center !important",
+        },
+        # 우측 정렬용 (숫자 컬럼은 컬럼 옵션에서 따로 설정)
+        ".ag-cell.ag-right-aligned-cell": {
+            "justify-content": "flex-end !important",
+        },
+    }
+
+
+def build_grid_options(df: pd.DataFrame, column_specs: list[dict]) -> dict:
+    """공통 그리드 옵션 빌더.
+    column_specs: [{"field": "캠페인", "width": 200, "type": "text|link|won|int|pct", "align": "left|right"}]
+    """
+    gb = GridOptionsBuilder.from_dataframe(df)
+
+    # 기본 컬럼 설정
+    gb.configure_default_column(
+        resizable=False,
+        sortable=True,
+        filter=False,
+        suppressMovable=True,
+        cellStyle={
+            "fontSize": "13px",
+            "color": AGG_TEXT_PRIMARY,
+            "fontFamily": AGG_FONT,
+        },
+    )
+
+    # 컬럼별 설정
+    for spec in column_specs:
+        field = spec["field"]
+        width = spec.get("width", 100)
+        ctype = spec.get("type", "text")
+        align = spec.get("align", "left")
+
+        cell_style = {"fontSize": "13px"}
+
+        # 텍스트 컬럼 스타일
+        if ctype == "link":
+            cell_style["color"] = AGG_TEXT_LINK
+            cell_style["fontWeight"] = "500"
+        else:
+            cell_style["color"] = AGG_TEXT_PRIMARY
+
+        # 정렬
+        if align == "right":
+            cell_style["textAlign"] = "right"
+            cell_style["justifyContent"] = "flex-end"
+
+        # 포맷터
+        formatter = None
+        if ctype == "won":
+            formatter = JsCode("function(p){return p.value==null?'-':'₩'+Math.round(p.value).toLocaleString();}")
+        elif ctype == "int":
+            formatter = JsCode("function(p){return p.value==null?'-':Math.round(p.value).toLocaleString();}")
+        elif ctype == "pct":
+            formatter = JsCode("function(p){return (p.value==null||isNaN(p.value))?'-':p.value.toFixed(2)+'%';}")
+        elif ctype == "db":
+            formatter = JsCode("function(p){return p.value==null?'-':p.value.toFixed(1);}")
+
+        kwargs = {"width": width, "cellStyle": cell_style}
+        if formatter is not None:
+            kwargs["valueFormatter"] = formatter
+            kwargs["type"] = ["numericColumn"]
+
+        gb.configure_column(field, **kwargs)
+
+    grid_options = gb.build()
+    grid_options["domLayout"] = "normal"
+    grid_options["headerHeight"] = 40
+    grid_options["rowHeight"] = 38
+    grid_options["suppressCellFocus"] = True
+
+    return grid_options
+
+
+def render_aggrid(df: pd.DataFrame, column_specs: list[dict], max_height: int = 500):
+    """AG Grid 렌더링 헬퍼"""
+    grid_options = build_grid_options(df, column_specs)
+    height = min(max_height, 50 + 38 * max(1, len(df)))
+    AgGrid(
+        df,
+        gridOptions=grid_options,
+        custom_css=aggrid_custom_css(),
+        allow_unsafe_jscode=True,
+        fit_columns_on_grid_load=False,
+        height=height,
+        theme="streamlit",
+    )
+
+
+# ============================================
 # AI 프롬프트 생성
 # ============================================
 def build_ai_prompt(camp: pd.Series, all_camps: pd.DataFrame, period_label: str) -> str:
@@ -641,32 +787,30 @@ st.subheader("🎯 캠페인별 성과")
 camp_df = by_camp.copy()
 camp_df["진단"] = [diagnose(r.to_dict(), st.session_state.settings)["label"] for _, r in camp_df.iterrows()]
 
-# 표시용 DataFrame (숫자 값 그대로 유지 → 헤더 클릭 정렬 시 숫자 기준)
+# AG Grid용 DataFrame (숫자 그대로 유지)
 display_camp = pd.DataFrame({
-    "캠페인": camp_df["campaign"],
-    "광고비": camp_df["cost"],
-    "DB수": camp_df["db"],
-    "DB단가": camp_df["cpa"],
-    "노출수": camp_df["impressions"],
-    "클릭수": camp_df["clicks"],
-    "CTR": camp_df["ctr"],
-    "CVR": camp_df["cvr"],
-    "진단": camp_df["진단"],
+    "캠페인": camp_df["campaign"].values,
+    "광고비": camp_df["cost"].values,
+    "DB수": camp_df["db"].values,
+    "DB단가": camp_df["cpa"].values,
+    "노출수": camp_df["impressions"].values,
+    "클릭수": camp_df["clicks"].values,
+    "CTR": camp_df["ctr"].values,
+    "CVR": camp_df["cvr"].values,
+    "진단": camp_df["진단"].values,
 })
-st.dataframe(
-    display_camp,
-    use_container_width=True,
-    hide_index=True,
-    column_config={
-        "광고비": st.column_config.NumberColumn(format="₩%d"),
-        "DB수":  st.column_config.NumberColumn(format="%.1f"),
-        "DB단가": st.column_config.NumberColumn(format="₩%d"),
-        "노출수": st.column_config.NumberColumn(format="%d"),
-        "클릭수": st.column_config.NumberColumn(format="%d"),
-        "CTR":   st.column_config.NumberColumn(format="%.2f%%"),
-        "CVR":   st.column_config.NumberColumn(format="%.2f%%"),
-    },
-)
+
+render_aggrid(display_camp, [
+    {"field": "캠페인", "width": 220, "type": "link"},
+    {"field": "광고비", "width": 120, "type": "won",  "align": "right"},
+    {"field": "DB수",   "width": 80,  "type": "db",   "align": "right"},
+    {"field": "DB단가", "width": 110, "type": "won",  "align": "right"},
+    {"field": "노출수", "width": 110, "type": "int",  "align": "right"},
+    {"field": "클릭수", "width": 100, "type": "int",  "align": "right"},
+    {"field": "CTR",   "width": 90,  "type": "pct",  "align": "right"},
+    {"field": "CVR",   "width": 90,  "type": "pct",  "align": "right"},
+    {"field": "진단",   "width": 120, "type": "text"},
+], max_height=600)
 
 
 # ----- AI 프롬프트 복사 영역 -----
@@ -701,32 +845,31 @@ if ag_query:
 ag_df["진단"] = [diagnose(r.to_dict(), st.session_state.settings)["label"] for _, r in ag_df.iterrows()]
 
 display_ag = pd.DataFrame({
-    "캠페인": ag_df["campaign"],
-    "광고그룹": ag_df["adgroup"],
-    "광고비": ag_df["cost"],
-    "DB수(추정)": ag_df["db"],
-    "DB단가": ag_df["cpa"],
-    "노출수": ag_df["impressions"],
-    "클릭수": ag_df["clicks"],
-    "CTR": ag_df["ctr"],
-    "CVR": ag_df["cvr"],
-    "진단": ag_df["진단"],
+    "캠페인": ag_df["campaign"].values,
+    "광고그룹": ag_df["adgroup"].values,
+    "광고비": ag_df["cost"].values,
+    "DB수(추정)": ag_df["db"].values,
+    "DB단가": ag_df["cpa"].values,
+    "노출수": ag_df["impressions"].values,
+    "클릭수": ag_df["clicks"].values,
+    "CTR": ag_df["ctr"].values,
+    "CVR": ag_df["cvr"].values,
+    "진단": ag_df["진단"].values,
 })
 st.caption(f"{len(ag_df):,}개 광고그룹")
-st.dataframe(
-    display_ag,
-    use_container_width=True,
-    hide_index=True,
-    column_config={
-        "광고비": st.column_config.NumberColumn(format="₩%d"),
-        "DB수(추정)": st.column_config.NumberColumn(format="%.1f"),
-        "DB단가": st.column_config.NumberColumn(format="₩%d"),
-        "노출수": st.column_config.NumberColumn(format="%d"),
-        "클릭수": st.column_config.NumberColumn(format="%d"),
-        "CTR":   st.column_config.NumberColumn(format="%.2f%%"),
-        "CVR":   st.column_config.NumberColumn(format="%.2f%%"),
-    },
-)
+
+render_aggrid(display_ag, [
+    {"field": "캠페인",     "width": 180, "type": "link"},
+    {"field": "광고그룹",   "width": 200, "type": "link"},
+    {"field": "광고비",     "width": 110, "type": "won", "align": "right"},
+    {"field": "DB수(추정)", "width": 100, "type": "db",  "align": "right"},
+    {"field": "DB단가",     "width": 110, "type": "won", "align": "right"},
+    {"field": "노출수",     "width": 100, "type": "int", "align": "right"},
+    {"field": "클릭수",     "width": 90,  "type": "int", "align": "right"},
+    {"field": "CTR",       "width": 80,  "type": "pct", "align": "right"},
+    {"field": "CVR",       "width": 80,  "type": "pct", "align": "right"},
+    {"field": "진단",       "width": 110, "type": "text"},
+], max_height=600)
 
 
 # ----- 키워드별 표 -----
@@ -737,7 +880,6 @@ kw_df = aggregate_by_keyword(df_filtered)
 kw_df = kw_df[kw_df["cost"] >= 1]
 kw_df["진단"] = [diagnose(r.to_dict(), st.session_state.settings, is_keyword=True)["label"] for _, r in kw_df.iterrows()]
 
-# AG Grid용 DataFrame (숫자 그대로 유지)
 display_kw = pd.DataFrame({
     "캠페인": kw_df["campaign"].values,
     "광고그룹": kw_df["adgroup"].values,
@@ -750,64 +892,16 @@ display_kw = pd.DataFrame({
 })
 st.caption(f"{len(kw_df):,}개 키워드")
 
-# AG Grid 옵션 설정 (매체별 성과 디자인)
-gb = GridOptionsBuilder.from_dataframe(display_kw)
-gb.configure_default_column(
-    resizable=False,
-    sortable=True,
-    filter=False,
-    suppressMovable=True,
-    cellStyle={'fontSize': '13px', 'color': '#1e293b'},
-)
-
-# 컬럼별 너비/포맷 설정
-gb.configure_column("캠페인",  width=160, cellStyle={'color': '#2563eb', 'fontWeight': '500'})
-gb.configure_column("광고그룹", width=160, cellStyle={'color': '#2563eb', 'fontWeight': '500'})
-gb.configure_column("키워드",   width=180, cellStyle={'color': '#2563eb', 'fontWeight': '500'})
-gb.configure_column(
-    "광고비", width=110, type=["numericColumn"],
-    valueFormatter=JsCode("function(p){return p.value==null?'-':'₩'+p.value.toLocaleString();}"),
-)
-gb.configure_column(
-    "노출수", width=100, type=["numericColumn"],
-    valueFormatter=JsCode("function(p){return p.value==null?'-':p.value.toLocaleString();}"),
-)
-gb.configure_column(
-    "클릭수", width=90, type=["numericColumn"],
-    valueFormatter=JsCode("function(p){return p.value==null?'-':p.value.toLocaleString();}"),
-)
-gb.configure_column(
-    "CTR", width=90, type=["numericColumn"],
-    valueFormatter=JsCode("function(p){return p.value==null?'-':p.value.toFixed(2)+'%';}"),
-)
-gb.configure_column("진단", width=110)
-
-# 그리드 전체 옵션
-grid_options = gb.build()
-grid_options['domLayout'] = 'normal'
-grid_options['headerHeight'] = 38
-grid_options['rowHeight'] = 36
-
-# 커스텀 CSS (매체별 성과 톤)
-custom_css = {
-    ".ag-header": {"background-color": "#1e3a8a !important", "color": "#ffffff !important"},
-    ".ag-header-cell": {"color": "#ffffff !important", "font-weight": "600 !important", "font-size": "13px !important"},
-    ".ag-header-cell-text": {"color": "#ffffff !important"},
-    ".ag-row-even": {"background-color": "#ffffff !important"},
-    ".ag-row-odd": {"background-color": "#f1f5f9 !important"},
-    ".ag-row-hover": {"background-color": "#e0e7ff !important"},
-    ".ag-cell": {"border": "none !important"},
-}
-
-AgGrid(
-    display_kw,
-    gridOptions=grid_options,
-    custom_css=custom_css,
-    allow_unsafe_jscode=True,
-    fit_columns_on_grid_load=False,
-    height=min(500, 50 + 36 * len(display_kw)),
-    theme="streamlit",
-)
+render_aggrid(display_kw, [
+    {"field": "캠페인",  "width": 160, "type": "link"},
+    {"field": "광고그룹", "width": 160, "type": "link"},
+    {"field": "키워드",  "width": 180, "type": "link"},
+    {"field": "광고비",  "width": 110, "type": "won", "align": "right"},
+    {"field": "노출수",  "width": 100, "type": "int", "align": "right"},
+    {"field": "클릭수",  "width": 90,  "type": "int", "align": "right"},
+    {"field": "CTR",    "width": 80,  "type": "pct", "align": "right"},
+    {"field": "진단",    "width": 110, "type": "text"},
+], max_height=600)
 
 st.caption("""
 ※ DB수·DB단가·CVR은 키워드 단위로 집계되지 않습니다. 네이버 파워링크 검색어별 보고서는
