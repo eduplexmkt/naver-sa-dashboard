@@ -33,45 +33,57 @@ st.markdown("""
         font-family: 'Pretendard Variable', Pretendard, sans-serif;
     }
 
-    /* === KPI 카드 (상단 지표) === */
-    [data-testid="metric-container"] {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        padding: 16px 18px;
-        border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-        transition: box-shadow 0.15s;
+    /* === KPI 카드 (Streamlit 최신: stMetric) === */
+    div[data-testid="stMetric"] {
+        background: #ffffff !important;
+        border: 1px solid #e5e7eb !important;
+        padding: 18px 20px !important;
+        border-radius: 12px !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
+        transition: box-shadow 0.15s !important;
     }
-    [data-testid="metric-container"]:hover {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    div[data-testid="stMetric"]:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
     }
     /* 라벨 (제목) */
-    [data-testid="metric-container"] label {
+    div[data-testid="stMetricLabel"] {
+        font-size: 12px !important;
+    }
+    div[data-testid="stMetricLabel"] * {
         color: #6b7280 !important;
         font-size: 12px !important;
         font-weight: 500 !important;
     }
     /* 값 (큰 숫자) */
-    [data-testid="metric-container"] [data-testid="stMetricValue"] {
+    div[data-testid="stMetricValue"] {
         color: #111827 !important;
-        font-size: 24px !important;
+        font-size: 26px !important;
+        font-weight: 700 !important;
+        line-height: 1.3 !important;
+    }
+    div[data-testid="stMetricValue"] * {
+        color: #111827 !important;
+        font-size: 26px !important;
         font-weight: 700 !important;
     }
 
-    /* === 표 헤더 디자인 (캠페인/광고그룹/키워드 성과 표) === */
-    /* Streamlit dataframe 헤더 어두운 네이비 톤으로 */
-    [data-testid="stDataFrame"] thead tr th {
+    /* === 표 헤더 (캠페인/광고그룹/키워드 성과 표) === */
+    /* Streamlit dataframe 헤더 어두운 네이비 톤 */
+    div[data-testid="stDataFrame"] thead tr th,
+    div[data-testid="stDataFrameResizable"] thead tr th {
         background: #1e3a8a !important;
         color: #ffffff !important;
         font-weight: 600 !important;
         border-bottom: 2px solid #1e3a8a !important;
     }
-    [data-testid="stDataFrame"] thead tr th * {
+    div[data-testid="stDataFrame"] thead tr th *,
+    div[data-testid="stDataFrameResizable"] thead tr th * {
         color: #ffffff !important;
     }
-    /* 표 셀 텍스트 */
-    [data-testid="stDataFrame"] tbody tr td {
-        font-size: 13px;
+    /* Streamlit 1.30+ glide-data-grid 셀렉터 */
+    [data-testid="stDataFrame"] [role="columnheader"] {
+        background: #1e3a8a !important;
+        color: #ffffff !important;
     }
 
     /* === 섹션 제목 === */
@@ -81,9 +93,14 @@ st.markdown("""
     }
     h2 {
         font-size: 18px !important;
-        border-left: 4px solid #1e3a8a;
-        padding-left: 10px;
-        margin-top: 24px !important;
+        border-left: 4px solid #1e3a8a !important;
+        padding-left: 12px !important;
+        margin-top: 28px !important;
+        margin-bottom: 12px !important;
+    }
+    h3 {
+        font-size: 16px !important;
+        margin-top: 20px !important;
     }
 
     /* === 진단 배지 === */
