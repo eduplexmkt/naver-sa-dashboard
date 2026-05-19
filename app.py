@@ -11,7 +11,6 @@ from datetime import datetime, date, timedelta
 
 import pandas as pd
 import streamlit as st
-import plotly.graph_objects as go
 import requests
 
 
@@ -25,7 +24,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# 기본 CSS 커스터마이징
+# 기본 CSS 커스터마이징 (마케팅 대시보드 디자인 톤에 맞춤)
 st.markdown("""
 <style>
     /* 폰트 */
@@ -33,7 +32,61 @@ st.markdown("""
     html, body, [class*="css"] {
         font-family: 'Pretendard Variable', Pretendard, sans-serif;
     }
-    /* 진단 배지 */
+
+    /* === KPI 카드 (상단 지표) === */
+    [data-testid="metric-container"] {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        padding: 16px 18px;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        transition: box-shadow 0.15s;
+    }
+    [data-testid="metric-container"]:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    /* 라벨 (제목) */
+    [data-testid="metric-container"] label {
+        color: #6b7280 !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
+    }
+    /* 값 (큰 숫자) */
+    [data-testid="metric-container"] [data-testid="stMetricValue"] {
+        color: #111827 !important;
+        font-size: 24px !important;
+        font-weight: 700 !important;
+    }
+
+    /* === 표 헤더 디자인 (캠페인/광고그룹/키워드 성과 표) === */
+    /* Streamlit dataframe 헤더 어두운 네이비 톤으로 */
+    [data-testid="stDataFrame"] thead tr th {
+        background: #1e3a8a !important;
+        color: #ffffff !important;
+        font-weight: 600 !important;
+        border-bottom: 2px solid #1e3a8a !important;
+    }
+    [data-testid="stDataFrame"] thead tr th * {
+        color: #ffffff !important;
+    }
+    /* 표 셀 텍스트 */
+    [data-testid="stDataFrame"] tbody tr td {
+        font-size: 13px;
+    }
+
+    /* === 섹션 제목 === */
+    h2, h3 {
+        color: #1e3a8a !important;
+        font-weight: 700 !important;
+    }
+    h2 {
+        font-size: 18px !important;
+        border-left: 4px solid #1e3a8a;
+        padding-left: 10px;
+        margin-top: 24px !important;
+    }
+
+    /* === 진단 배지 === */
     .diag {
         display: inline-block;
         padding: 3px 8px;
@@ -48,26 +101,20 @@ st.markdown("""
     .diag-waste  { background: #343a40; color: #f8f9fa; border: 1px solid #343a40; }
     .diag-low    { background: #f7f8fa; color: #9ca3af; border: 1px solid #e5e7eb; }
     .diag-ok     { background: #f7f8fa; color: #6b7280; border: 1px solid #e5e7eb; }
-    /* KPI 카드 강조 */
-    [data-testid="metric-container"] {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        padding: 12px;
-        border-radius: 10px;
-    }
-    /* 액션 아이템 */
+
+    /* === 액션 아이템 === */
     .action-item {
-        padding: 10px 14px;
-        background: #f7f8fa;
-        border-left: 3px solid #d1d5db;
-        border-radius: 4px;
+        padding: 12px 16px;
+        background: #f9fafb;
+        border-left: 4px solid #d1d5db;
+        border-radius: 6px;
         margin-bottom: 8px;
         font-size: 13px;
     }
-    .action-item.priority-high   { border-left-color: #dc3545; }
-    .action-item.priority-medium { border-left-color: #f0ad4e; }
-    .action-item.priority-good   { border-left-color: #28a745; }
-    .action-item strong { display: block; margin-bottom: 4px; }
+    .action-item.priority-high   { border-left-color: #dc3545; background: #fef2f2; }
+    .action-item.priority-medium { border-left-color: #f0ad4e; background: #fffaf0; }
+    .action-item.priority-good   { border-left-color: #28a745; background: #f0fdf4; }
+    .action-item strong { display: block; margin-bottom: 4px; color: #111827; }
     .action-item .meta { color: #6b7280; font-size: 12px; margin-top: 4px; }
 </style>
 """, unsafe_allow_html=True)
@@ -531,65 +578,8 @@ else:
         """, unsafe_allow_html=True)
 
 
-# ----- 차트: 일별 트렌드 -----
-st.subheader("📈 일별 트렌드")
-date_agg = aggregate_by_date(df_filtered)
-if not date_agg.empty:
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=date_agg["date"], y=date_agg["cost"],
-        name="광고비 (₩)", marker_color="rgba(31, 111, 235, 0.6)",
-        yaxis="y",
-    ))
-    fig.add_trace(go.Scatter(
-        x=date_agg["date"], y=date_agg["db"],
-        name="DB수 (건)", line=dict(color="#e0794b", width=2),
-        marker=dict(size=8), mode="lines+markers",
-        yaxis="y2",
-    ))
-    fig.update_layout(
-        height=320,
-        yaxis=dict(title="광고비", side="left"),
-        yaxis2=dict(title="DB수", side="right", overlaying="y"),
-        legend=dict(orientation="h", y=1.1),
-        margin=dict(l=40, r=40, t=40, b=40),
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-
-# ----- 차트: DB단가 추이 -----
-st.subheader("📉 일별 DB단가 추이")
-if not date_agg.empty:
-    cpa_series = date_agg.apply(lambda r: r["cost"] / r["db"] if r["db"] > 0 else None, axis=1)
-    total_db_period = date_agg["db"].sum()
-    avg_cpa = date_agg["cost"].sum() / total_db_period if total_db_period > 0 else None
-
-    fig_cpa = go.Figure()
-    fig_cpa.add_trace(go.Scatter(
-        x=date_agg["date"], y=cpa_series,
-        name="DB단가", line=dict(color="#5b8c5a", width=2),
-        marker=dict(size=8), mode="lines+markers",
-        connectgaps=False,
-    ))
-    if avg_cpa is not None:
-        fig_cpa.add_trace(go.Scatter(
-            x=date_agg["date"], y=[avg_cpa] * len(date_agg),
-            name=f"기간 평균 ({fmt_won(avg_cpa)})",
-            line=dict(color="#9aa0a8", width=1.5, dash="dash"),
-            mode="lines",
-        ))
-    fig_cpa.update_layout(
-        height=280,
-        yaxis=dict(title="DB단가 (₩)"),
-        legend=dict(orientation="h", y=1.1),
-        margin=dict(l=40, r=40, t=40, b=40),
-    )
-    st.plotly_chart(fig_cpa, use_container_width=True)
-    st.caption("※ DB가 0건인 일자는 단가 계산 불가로 차트에서 빠집니다.")
-
-
-# ----- 캠페인별 표 -----
-st.subheader("🎯 캠페인별 현황")
+# ----- 캠페인 성과 표 -----
+st.subheader("🎯 캠페인별 성과")
 camp_df = by_camp.copy()
 camp_df["진단"] = [diagnose(r.to_dict(), st.session_state.settings)["label"] for _, r in camp_df.iterrows()]
 
@@ -633,7 +623,7 @@ with st.expander("🤖 캠페인 AI 분석 프롬프트 생성"):
 
 
 # ----- 광고그룹별 표 -----
-st.subheader("📦 광고그룹별 현황")
+st.subheader("📦 광고그룹별 성과")
 st.caption("예산 증액·삭감 의사결정용. DB는 광고비 비율로 분배된 추정값입니다.")
 
 ag_col1, ag_col2, ag_col3 = st.columns([1, 2, 1])
@@ -682,7 +672,7 @@ st.dataframe(
 
 
 # ----- 키워드별 표 -----
-st.subheader("🔑 키워드별 현황")
+st.subheader("🔑 키워드별 성과")
 kw_col1, _ = st.columns([1, 3])
 with kw_col1:
     kw_min_cost = st.number_input("최소 광고비 (₩)", min_value=0, value=1, step=1, key="kw_min_cost")
