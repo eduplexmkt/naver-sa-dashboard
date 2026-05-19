@@ -24,51 +24,88 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# 기본 CSS 커스터마이징 (마케팅 대시보드 디자인 톤에 맞춤)
+# 기본 CSS 커스터마이징 (마케팅 대시보드 디자인 시스템에 통일)
 st.markdown("""
 <style>
-    /* 폰트 */
+    /* === 폰트 === */
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
     html, body, [class*="css"] {
         font-family: 'Pretendard Variable', Pretendard, sans-serif;
     }
 
-    /* === KPI 카드 (Streamlit 최신: stMetric) === */
-    div[data-testid="stMetric"] {
-        background: #ffffff !important;
-        border: 1px solid #e5e7eb !important;
-        padding: 18px 20px !important;
-        border-radius: 12px !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
-        transition: box-shadow 0.15s !important;
+    /* === 전체 배경 (옅은 슬레이트) === */
+    .stApp {
+        background: #f8fafc;
     }
-    div[data-testid="stMetric"]:hover {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
-    }
-    /* 라벨 (제목) */
-    div[data-testid="stMetricLabel"] {
-        font-size: 12px !important;
-    }
-    div[data-testid="stMetricLabel"] * {
-        color: #6b7280 !important;
-        font-size: 12px !important;
-        font-weight: 500 !important;
-    }
-    /* 값 (큰 숫자) */
-    div[data-testid="stMetricValue"] {
-        color: #111827 !important;
-        font-size: 26px !important;
-        font-weight: 700 !important;
-        line-height: 1.3 !important;
-    }
-    div[data-testid="stMetricValue"] * {
-        color: #111827 !important;
-        font-size: 26px !important;
-        font-weight: 700 !important;
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+        max-width: 1400px;
     }
 
-    /* === 표 헤더 (캠페인/광고그룹/키워드 성과 표) === */
-    /* Streamlit dataframe 헤더 어두운 네이비 톤 */
+    /* === KPI 카드 (커스텀 HTML) === */
+    .kpi-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        min-height: 130px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        transition: box-shadow 0.15s, transform 0.15s;
+    }
+    .kpi-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        transform: translateY(-1px);
+    }
+    .kpi-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+    }
+    .kpi-label {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 500;
+        margin-top: auto;
+    }
+    .kpi-value {
+        font-size: 22px;
+        font-weight: 700;
+        color: #1e293b;
+        line-height: 1.2;
+    }
+
+    /* === 섹션 헤더 (네이비 바 + 점 마커) === */
+    h2 {
+        background: #1e293b !important;
+        color: #ffffff !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        padding: 12px 16px !important;
+        border-radius: 8px !important;
+        margin-top: 28px !important;
+        margin-bottom: 16px !important;
+    }
+    h2::before {
+        content: "●";
+        color: #818cf8;
+        margin-right: 8px;
+    }
+    h3 {
+        color: #1e293b !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        margin-top: 16px !important;
+    }
+
+    /* === 표 헤더 (네이비) === */
     div[data-testid="stDataFrame"] thead tr th,
     div[data-testid="stDataFrameResizable"] thead tr th {
         background: #1e3a8a !important;
@@ -80,27 +117,9 @@ st.markdown("""
     div[data-testid="stDataFrameResizable"] thead tr th * {
         color: #ffffff !important;
     }
-    /* Streamlit 1.30+ glide-data-grid 셀렉터 */
     [data-testid="stDataFrame"] [role="columnheader"] {
         background: #1e3a8a !important;
         color: #ffffff !important;
-    }
-
-    /* === 섹션 제목 === */
-    h2, h3 {
-        color: #1e3a8a !important;
-        font-weight: 700 !important;
-    }
-    h2 {
-        font-size: 18px !important;
-        border-left: 4px solid #1e3a8a !important;
-        padding-left: 12px !important;
-        margin-top: 28px !important;
-        margin-bottom: 12px !important;
-    }
-    h3 {
-        font-size: 16px !important;
-        margin-top: 20px !important;
     }
 
     /* === 진단 배지 === */
@@ -133,6 +152,16 @@ st.markdown("""
     .action-item.priority-good   { border-left-color: #28a745; background: #f0fdf4; }
     .action-item strong { display: block; margin-bottom: 4px; color: #111827; }
     .action-item .meta { color: #6b7280; font-size: 12px; margin-top: 4px; }
+
+    /* === 타이틀 (페이지 제목) === */
+    h1 {
+        color: #1e293b !important;
+        font-weight: 700 !important;
+        font-size: 24px !important;
+    }
+
+    /* === Streamlit 기본 metric 숨기기 (혹시 남아있는 경우) === */
+    /* (커스텀 KPI 카드 사용하므로 stMetric은 사용 안 함) */
 </style>
 """, unsafe_allow_html=True)
 
@@ -555,14 +584,25 @@ if not df_filtered.empty:
     total_ctr = (total_clk / total_imp * 100) if total_imp > 0 else None
     total_cvr = (total_db / total_clk * 100) if total_clk > 0 else None
 
+    # KPI 카드 (마케팅 대시보드 스타일 - 이모지 아이콘 + 컬러 박스)
+    kpi_data = [
+        ("💰", "총 광고비", fmt_won(total_cost), "#fef3c7", "#d97706"),
+        ("📋", "DB수",      fmt_db(total_db) + "건", "#dbeafe", "#2563eb"),
+        ("💵", "DB단가",    fmt_won(total_cpa), "#fee2e2", "#dc2626"),
+        ("👁️", "노출수",    fmt_int(total_imp), "#e0e7ff", "#4f46e5"),
+        ("🖱️", "클릭수",    fmt_int(total_clk), "#dcfce7", "#16a34a"),
+        ("🎯", "CTR",       fmt_pct(total_ctr), "#fce7f3", "#db2777"),
+        ("📈", "CVR",       fmt_pct(total_cvr), "#f3e8ff", "#9333ea"),
+    ]
     kpi_cols = st.columns(7)
-    kpi_cols[0].metric("광고비", fmt_won(total_cost))
-    kpi_cols[1].metric("DB수", fmt_db(total_db) + " 건")
-    kpi_cols[2].metric("DB단가", fmt_won(total_cpa))
-    kpi_cols[3].metric("노출수", fmt_int(total_imp))
-    kpi_cols[4].metric("클릭수", fmt_int(total_clk))
-    kpi_cols[5].metric("CTR", fmt_pct(total_ctr))
-    kpi_cols[6].metric("CVR", fmt_pct(total_cvr))
+    for col, (icon, label, value, bg, fg) in zip(kpi_cols, kpi_data):
+        col.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:{bg}; color:{fg};">{icon}</div>
+            <div class="kpi-label">{label}</div>
+            <div class="kpi-value">{value}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
 
 # ----- 액션 요약 카드 -----
@@ -690,12 +730,10 @@ st.dataframe(
 
 # ----- 키워드별 표 -----
 st.subheader("🔑 키워드별 성과")
-kw_col1, _ = st.columns([1, 3])
-with kw_col1:
-    kw_min_cost = st.number_input("최소 광고비 (₩)", min_value=0, value=1, step=1, key="kw_min_cost")
 
 kw_df = aggregate_by_keyword(df_filtered)
-kw_df = kw_df[kw_df["cost"] >= kw_min_cost]
+# 광고비 1원 이상만 표시 (0원 키워드 제외)
+kw_df = kw_df[kw_df["cost"] >= 1]
 kw_df["진단"] = [diagnose(r.to_dict(), st.session_state.settings, is_keyword=True)["label"] for _, r in kw_df.iterrows()]
 
 display_kw = pd.DataFrame({
