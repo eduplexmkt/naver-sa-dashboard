@@ -12,6 +12,7 @@ from datetime import datetime, date, timedelta
 import pandas as pd
 import streamlit as st
 import requests
+from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 
 
 # ============================================
@@ -736,30 +737,76 @@ kw_df = aggregate_by_keyword(df_filtered)
 kw_df = kw_df[kw_df["cost"] >= 1]
 kw_df["진단"] = [diagnose(r.to_dict(), st.session_state.settings, is_keyword=True)["label"] for _, r in kw_df.iterrows()]
 
+# AG Grid용 DataFrame (숫자 그대로 유지)
 display_kw = pd.DataFrame({
-    "캠페인": kw_df["campaign"],
-    "광고그룹": kw_df["adgroup"],
-    "키워드": kw_df["keyword"],
-    "광고비": kw_df["cost"],
-    "노출수": kw_df["impressions"],
-    "클릭수": kw_df["clicks"],
-    "CTR": kw_df["ctr"],
-    "DB수": "—",
-    "DB단가": "—",
-    "CVR": "—",
-    "진단": kw_df["진단"],
+    "캠페인": kw_df["campaign"].values,
+    "광고그룹": kw_df["adgroup"].values,
+    "키워드": kw_df["keyword"].values,
+    "광고비": kw_df["cost"].values,
+    "노출수": kw_df["impressions"].values,
+    "클릭수": kw_df["clicks"].values,
+    "CTR": kw_df["ctr"].values,
+    "진단": kw_df["진단"].values,
 })
 st.caption(f"{len(kw_df):,}개 키워드")
-st.dataframe(
+
+# AG Grid 옵션 설정 (매체별 성과 디자인)
+gb = GridOptionsBuilder.from_dataframe(display_kw)
+gb.configure_default_column(
+    resizable=False,
+    sortable=True,
+    filter=False,
+    suppressMovable=True,
+    cellStyle={'fontSize': '13px', 'color': '#1e293b'},
+)
+
+# 컬럼별 너비/포맷 설정
+gb.configure_column("캠페인",  width=160, cellStyle={'color': '#2563eb', 'fontWeight': '500'})
+gb.configure_column("광고그룹", width=160, cellStyle={'color': '#2563eb', 'fontWeight': '500'})
+gb.configure_column("키워드",   width=180, cellStyle={'color': '#2563eb', 'fontWeight': '500'})
+gb.configure_column(
+    "광고비", width=110, type=["numericColumn"],
+    valueFormatter=JsCode("function(p){return p.value==null?'-':'₩'+p.value.toLocaleString();}"),
+)
+gb.configure_column(
+    "노출수", width=100, type=["numericColumn"],
+    valueFormatter=JsCode("function(p){return p.value==null?'-':p.value.toLocaleString();}"),
+)
+gb.configure_column(
+    "클릭수", width=90, type=["numericColumn"],
+    valueFormatter=JsCode("function(p){return p.value==null?'-':p.value.toLocaleString();}"),
+)
+gb.configure_column(
+    "CTR", width=90, type=["numericColumn"],
+    valueFormatter=JsCode("function(p){return p.value==null?'-':p.value.toFixed(2)+'%';}"),
+)
+gb.configure_column("진단", width=110)
+
+# 그리드 전체 옵션
+grid_options = gb.build()
+grid_options['domLayout'] = 'normal'
+grid_options['headerHeight'] = 38
+grid_options['rowHeight'] = 36
+
+# 커스텀 CSS (매체별 성과 톤)
+custom_css = {
+    ".ag-header": {"background-color": "#1e3a8a !important", "color": "#ffffff !important"},
+    ".ag-header-cell": {"color": "#ffffff !important", "font-weight": "600 !important", "font-size": "13px !important"},
+    ".ag-header-cell-text": {"color": "#ffffff !important"},
+    ".ag-row-even": {"background-color": "#ffffff !important"},
+    ".ag-row-odd": {"background-color": "#f1f5f9 !important"},
+    ".ag-row-hover": {"background-color": "#e0e7ff !important"},
+    ".ag-cell": {"border": "none !important"},
+}
+
+AgGrid(
     display_kw,
-    use_container_width=True,
-    hide_index=True,
-    column_config={
-        "광고비": st.column_config.NumberColumn(format="₩%d"),
-        "노출수": st.column_config.NumberColumn(format="%d"),
-        "클릭수": st.column_config.NumberColumn(format="%d"),
-        "CTR":   st.column_config.NumberColumn(format="%.2f%%"),
-    },
+    gridOptions=grid_options,
+    custom_css=custom_css,
+    allow_unsafe_jscode=True,
+    fit_columns_on_grid_load=False,
+    height=min(500, 50 + 36 * len(display_kw)),
+    theme="streamlit",
 )
 
 st.caption("""
