@@ -1005,7 +1005,9 @@ sum_col4.markdown(f"""
 
 # 절감 예상 광고비 (기간 기준)
 if stop_cost_sum > 0 or review_cost_sum > 0:
-    period_days = (df_filtered["date"].max() - df_filtered["date"].min()).days + 1 if not df_filtered.empty else 30
+    # 기간 일수는 필터된 데이터의 고유 날짜 개수로 계산
+    period_days = df_filtered["date"].nunique() if not df_filtered.empty else 30
+    period_days = max(period_days, 1)  # 0으로 나누기 방지
     daily_stop_cost = stop_cost_sum / period_days
     daily_review_cost = review_cost_sum / period_days
     st.markdown(f"""
