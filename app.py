@@ -908,5 +908,179 @@ st.caption("""
 노출·클릭·광고비만 제공하며, 구글 시트 DB는 캠페인 단위로만 귀속됩니다.
 """)
 
+
+# ============================================
+# 키워드 정리 섹션 (9월 재설계용)
+# ============================================
+st.subheader("🧹 키워드 정리 — 재설계 액션 리스트")
+st.caption(
+    "선택 기간의 키워드를 자동 분류합니다. 광고비 낭비/점검 필요/확장 후보를 한번에 확인. "
+    "임계값은 아래에서 조정 가능."
+)
+
+# --- 임계값 설정 (사용자 조정 가능) ---
+with st.expander("⚙️ 분류 임계값 설정", expanded=False):
+    tc1, tc2, tc3 = st.columns(3)
+    with tc1:
+        st.markdown("**🔴 즉시 중단**")
+        stop_min_cost = st.number_input("최소 광고비 (₩)", value=5000, step=1000, key="stop_min_cost")
+        stop_min_imp = st.number_input("최소 노출 (관련성 낮음 판정)", value=1000, step=100, key="stop_min_imp")
+        stop_max_click = st.number_input("최대 클릭 (관련성 낮음 판정)", value=3, step=1, key="stop_max_click")
+    with tc2:
+        st.markdown("**🟡 점검 필요**")
+        review_min_cost = st.number_input("최소 광고비 (₩)", value=3000, step=500, key="review_min_cost")
+        review_max_ctr = st.number_input("최대 CTR (%) - 이하", value=0.3, step=0.1, key="review_max_ctr")
+    with tc3:
+        st.markdown("**🟢 확장 후보**")
+        expand_min_ctr = st.number_input("최소 CTR (%)", value=2.0, step=0.5, key="expand_min_ctr")
+        expand_min_click = st.number_input("최소 클릭 (신뢰성)", value=10, step=1, key="expand_min_click")
+
+# --- 전체 키워드 집계 (필터 기간 기준) ---
+all_kw = aggregate_by_keyword(df_filtered)
+total_kw_count = len(all_kw)
+active_kw = all_kw[all_kw["cost"] >= 1]  # 광고비 발생 키워드만
+active_kw_count = len(active_kw)
+
+# --- 분류 로직 ---
+# 🔴 즉시 중단
+stop_kw = active_kw[
+    ((active_kw["cost"] >= stop_min_cost) & (active_kw["clicks"] == 0)) |
+    ((active_kw["impressions"] >= stop_min_imp) & (active_kw["clicks"] < stop_max_click))
+].copy()
+stop_kw = stop_kw.sort_values("cost", ascending=False).reset_index(drop=True)
+
+# 🟡 점검 필요 (즉시 중단 대상은 제외)
+stop_kw_keys = set(stop_kw["keyword"].tolist()) if not stop_kw.empty else set()
+review_kw = active_kw[
+    (~active_kw["keyword"].isin(stop_kw_keys)) &
+    (active_kw["cost"] >= review_min_cost) &
+    (active_kw["ctr"] < review_max_ctr) &
+    (active_kw["clicks"] > 0)
+].copy()
+review_kw = review_kw.sort_values("cost", ascending=False).reset_index(drop=True)
+
+# 🟢 확장 후보 (중단/점검 대상 제외)
+review_kw_keys = set(review_kw["keyword"].tolist()) if not review_kw.empty else set()
+excluded = stop_kw_keys | review_kw_keys
+expand_kw = active_kw[
+    (~active_kw["keyword"].isin(excluded)) &
+    (active_kw["ctr"] >= expand_min_ctr) &
+    (active_kw["clicks"] >= expand_min_click)
+].copy()
+expand_kw = expand_kw.sort_values("ctr", ascending=False).reset_index(drop=True)
+
+# --- 요약 카드 ---
+stop_cost_sum = stop_kw["cost"].sum() if not stop_kw.empty else 0
+review_cost_sum = review_kw["cost"].sum() if not review_kw.empty else 0
+
+sum_col1, sum_col2, sum_col3, sum_col4 = st.columns(4)
+sum_col1.markdown(f"""
+<div class="kpi-card">
+    <div class="kpi-icon" style="background:#f1f5f9; color:#64748b;">📦</div>
+    <div class="kpi-label">전체 키워드</div>
+    <div class="kpi-value">{total_kw_count:,}</div>
+</div>
+""", unsafe_allow_html=True)
+sum_col2.markdown(f"""
+<div class="kpi-card">
+    <div class="kpi-icon" style="background:#fee2e2; color:#dc2626;">🔴</div>
+    <div class="kpi-label">즉시 중단 후보</div>
+    <div class="kpi-value">{len(stop_kw):,}</div>
+</div>
+""", unsafe_allow_html=True)
+sum_col3.markdown(f"""
+<div class="kpi-card">
+    <div class="kpi-icon" style="background:#fff3cd; color:#856404;">🟡</div>
+    <div class="kpi-label">점검 필요</div>
+    <div class="kpi-value">{len(review_kw):,}</div>
+</div>
+""", unsafe_allow_html=True)
+sum_col4.markdown(f"""
+<div class="kpi-card">
+    <div class="kpi-icon" style="background:#dcfce7; color:#16a34a;">🟢</div>
+    <div class="kpi-label">확장 후보</div>
+    <div class="kpi-value">{len(expand_kw):,}</div>
+</div>
+""", unsafe_allow_html=True)
+
+# 절감 예상 광고비 (기간 기준)
+if stop_cost_sum > 0 or review_cost_sum > 0:
+    period_days = (df_filtered["date"].max() - df_filtered["date"].min()).days + 1 if not df_filtered.empty else 30
+    daily_stop_cost = stop_cost_sum / period_days
+    daily_review_cost = review_cost_sum / period_days
+    st.markdown(f"""
+    <div class="action-item priority-high" style="margin-top: 16px;">
+        <strong>💰 예상 절감 광고비</strong>
+        즉시 중단 대상만 정리해도 <b>일 평균 {fmt_won(daily_stop_cost)} · 월 {fmt_won(daily_stop_cost * 30)}</b> 절감 가능.<br>
+        점검 대상까지 개선 시 최대 <b>월 {fmt_won((daily_stop_cost + daily_review_cost) * 30)}</b> 절감 여지.
+        <div class="meta">기간 {period_days}일 기준 · 광고비 낭비 정리 후 성과 좋은 키워드로 재배분 권장</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# --- 상세 리스트 (탭으로 분류) ---
+tab_stop, tab_review, tab_expand = st.tabs([
+    f"🔴 즉시 중단 후보 ({len(stop_kw):,})",
+    f"🟡 점검 필요 ({len(review_kw):,})",
+    f"🟢 확장 후보 ({len(expand_kw):,})",
+])
+
+def _render_cleanup_grid(df: pd.DataFrame, label: str, include_cvr: bool = False):
+    """정리 리스트 렌더링"""
+    if df.empty:
+        st.info(f"{label} 키워드가 없습니다. (임계값 조정 시 결과 달라질 수 있음)")
+        return
+
+    display_df = pd.DataFrame({
+        "캠페인": df["campaign"].values,
+        "광고그룹": df["adgroup"].values,
+        "키워드": df["keyword"].values,
+        "광고비": df["cost"].values,
+        "노출수": df["impressions"].values,
+        "클릭수": df["clicks"].values,
+        "CTR": df["ctr"].values,
+    })
+    render_aggrid(display_df, [
+        {"field": "캠페인",  "width": 150, "type": "link"},
+        {"field": "광고그룹", "width": 150, "type": "link"},
+        {"field": "키워드",  "width": 200, "type": "link"},
+        {"field": "광고비",  "width": 110, "type": "won", "align": "right"},
+        {"field": "노출수",  "width": 100, "type": "int", "align": "right"},
+        {"field": "클릭수",  "width": 90,  "type": "int", "align": "right"},
+        {"field": "CTR",    "width": 80,  "type": "pct", "align": "right"},
+    ], max_height=500)
+
+    # CSV 다운로드
+    csv_bytes = display_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
+    st.download_button(
+        f"📥 {label} 리스트 CSV 다운로드",
+        data=csv_bytes,
+        file_name=f"keyword_cleanup_{label}_{datetime.now().strftime('%Y%m%d')}.csv",
+        mime="text/csv",
+    )
+
+with tab_stop:
+    st.markdown(f"""
+    **판정 기준**: 광고비 ≥ ₩{stop_min_cost:,} + 클릭 0건, 또는 노출 ≥ {stop_min_imp:,} + 클릭 < {stop_max_click}회
+    """)
+    _render_cleanup_grid(stop_kw, "즉시중단")
+
+with tab_review:
+    st.markdown(f"""
+    **판정 기준**: 광고비 ≥ ₩{review_min_cost:,} + CTR < {review_max_ctr}% + 클릭 있음 (소재/입찰가 점검 필요)
+    """)
+    _render_cleanup_grid(review_kw, "점검필요")
+
+with tab_expand:
+    st.markdown(f"""
+    **판정 기준**: CTR ≥ {expand_min_ctr}% + 클릭 ≥ {expand_min_click}회 (효율 좋음, 확장 검토)
+    """)
+    _render_cleanup_grid(expand_kw, "확장후보")
+
+st.caption("""
+※ 이 분류는 **참고용 자동 필터**입니다. 최종 액션 전엔 개별 키워드의 검색 의도/경쟁 상황을 함께 검토하세요.
+※ 브랜드 키워드는 CTR/CVR이 낮아도 유지하는 게 유리할 수 있습니다.
+""")
+
+
 st.divider()
 st.caption(f"페이지 마지막 로드: {datetime.now().strftime('%Y-%m-%d %H:%M')} · 데이터는 10분 캐시 후 자동 갱신")
